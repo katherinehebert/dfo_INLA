@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(INLA)
 library(raster)
-library(animation)
+#library(animation)
 ```
 
 ## Prepare the data
@@ -48,8 +48,6 @@ plot(number@endTime, number@data$`WHITE HAKE`, type = "l")
 plot(number@sp, pch = 19, cex = number@data$`WHITE HAKE`/300)
 plot(gulf, add = TRUE)
 ```
-
-
 
 
 ## Step 1 - Building the meshes
