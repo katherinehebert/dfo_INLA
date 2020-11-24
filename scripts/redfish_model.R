@@ -1,20 +1,25 @@
-####practice script for ciee work
-library(here)
-library(raster)
+###########################
+###########################
+## This script will work on the model fitting process for redfish
+## in the DFO St. Lawrence data
+###########################
+###########################
+## date: 2020-11-13
+## author: Cole Brookson
+###########################
+###########################
+
+#libraries
 library(INLA)
-library(animation)
+library(here)
 
-fishRich = readRDS(here('fishRich.RDS'))
-catchTotal = readRDS(here('catchTotal.RDS'))
-explan = readRDS(here('explan.RDS'))
-gulf = readRDS(here('gulf.RDS'))
-number = readRDS(here('number.RDS'))
+#read in all data
+source(here('./scripts/read_in_all_data.R'))
 
-number@data$`WHITE HAKE`
-
+#make some meshes
 redfish = number@data$`REDFISH UNSEPARATED`
 
-maxEdge = 7500
+maxEdge = 2500
 meshSpace = inla.mesh.2d(boundary = gulf, 
                          max.edge = maxEdge*c(0.5,2),
                          offset = c(100000,20000),
