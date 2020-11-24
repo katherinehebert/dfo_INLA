@@ -194,8 +194,6 @@ hSpec <- list(theta=list(prior='pccor1', param=c(0.2, 0.9)))
 # guessing it's 1 with a confidence of .01, which is super low.
 
 # note ^ is not useful if using a Poisson.
-
-precGamma <- list(prior = "pc.gamma", param = c(.0001, .0001))
 ```
 
 
@@ -268,17 +266,6 @@ model_gaussian <- inla(form,
                                        link = 1),
               control.compute = list(waic = TRUE,
                                      config = TRUE))
-# not running because y has zeros?
-model_gamma <- inla(form,
-              data = inla.stack.data(Stack),
-              family="gamma",
-              control.family = list(link = "default",
-                hyper = list(theta = list(precGamma$prior))),
-              control.predictor = list(A = inla.stack.A(Stack), 
-                                       compute = TRUE, 
-                                       link = 1),
-              control.compute = list(waic = TRUE,
-                                     config = TRUE))
 ```
 
 ## Checking and interpreting the model
@@ -333,11 +320,11 @@ map.975 <- vector("list", length = timeGr)
 for(i in 1:timeGr){
   # Model prediction
   fitMean <- inla.mesh.project(mapBasis, 
-                               model$summary.random$field$mean[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                          model_gaussian$summary.random$field$mean[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
   fit.025 <- inla.mesh.project(mapBasis, 
-                               model$summary.random$field$`0.025quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                               model_gaussian$summary.random$field$`0.025quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
   fit.975 <- inla.mesh.project(mapBasis, 
-                               model$summary.random$field$`0.975quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                               model_gaussian$summary.random$field$`0.975quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
 
   # Build maps with confidence intervals
   mapMean[[i]] <- raster(t(fitMean[,ncol(fitMean):1]),
@@ -398,13 +385,14 @@ raster.975Mask_df <- as.data.frame(raster.975Mask, xy = TRUE, na.rm = TRUE)
 
 # function to plot model results using ggplot2
 result_map <- function(raster_df, column_name, title){
-  p <- ggplot(data = raster_df, aes(x = x, y = y)) +
-    geom_raster(aes(fill = get(column_name))) + 
+  p <- ggplot() +
+    geom_raster(data = raster_df, 
+                aes(x = x, y = y, fill = get(column_name))) + 
     labs(fill = "Abundance") +
     scale_fill_distiller(palette = "RdBu", 
                          limits = c(-max(abs(raster.975Mask_df[,column_name])), 
                                     max(abs(raster.975Mask_df[,column_name])))) +
-    theme_void() 
+    theme_void()  
   return(p)
 }
 
@@ -425,3 +413,26 @@ p2.975 <- result_map(raster.975Mask_df, "layer.2") + theme(legend.position = "bo
 ```
 
 Compare the models with wAIC
+
+Attempt with gamma distribution
+
+```{r}
+
+# try to see residuals of the model_gaussian
+hist(number@data$`WHITE HAKE`) 
+
+precGamma <- list(prior = "pc.gamma", param = c(1, .1))
+
+# not running because y has zeros?
+model_gamma <- inla(form,
+              data = inla.stack.data(Stack),
+              family="gamma",
+              control.family = list(link = "log",
+                hyper = list(theta = list(precGamma$prior))),
+              control.predictor = list(A = inla.stack.A(Stack), 
+                                       compute = TRUE, 
+                                       link = 1),
+              control.compute = list(waic = TRUE,
+                                     config = TRUE))
+```
+
