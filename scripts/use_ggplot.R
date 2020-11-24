@@ -2,11 +2,10 @@
 
 library(sf)
 library(tidyverse)
+require(here)
 
 # load data
-explan <- readRDS("data/explan.RDS")
-number <- readRDS("data/number.RDS")
-gulf <- readRDS("data/gulf.RDS")
+source(here("./scripts/read_in_all_data.R"))
 
 # function to add coordinates to dataset in preparation for conversion to sf
 add_coords <- function(stidf_object){
@@ -40,27 +39,78 @@ st_crs(gulf_sf) <- gulf@proj4string # set coordinate ref system
 # maps -----
 
 # ggplot map of explanatory variable
-ggplot() +
-  geom_sf(data = gulf_sf, fill = "white") +
-  geom_sf(data = filter(explan_sf, 
-                        # pick a sequence of years to check out
-                        year %in% c(1971, 1981, 1991, 2001, 2011, 2019)),
-          aes(col = bottom.temperature)) +
-  facet_wrap(~year) +
-  scale_color_viridis_c(option = "viridis") +
-  labs(color = "Bottom \ntemperature") +
-  theme_void() 
+explanatory_variable_map = function(variable, years) {
+  
+  # Function uses predefined data of the gulf and the explan_sf df,but takes in
+  # the variable of interest to plot and returns a map
+  #
+  # Parameters:
+  #            variable (TYPE = character): vector (dataframe column) of interest 
+  #                                      passed as the name of the column
+  #            years (TYPE = char vector): concatenated vector of the study 
+  #                                       years of interested passed as integers
+  # Returns:
+  #            plot (TYPE = ggplot object): plot of desired variable
+  #
+  # EXAMPLE USAGE:
+  # > explanatory_variable_map('bottom.temperature', c(1971, 1981, 1991))
+  #
+  
+  return(
+    
+    ggplot() +
+      geom_sf(data = gulf_sf, fill = "white") +
+      geom_sf(data = filter(explan_sf, 
+                            # pick a sequence of years to check out
+                            year %in% years),
+              aes_string(col = variable)) +
+      facet_wrap(~year) +
+      scale_color_viridis_c(option = "viridis") +
+      labs(color = gsub("\\.", "\n", variable)) +
+      theme_void() 
+  )
+  
+}
+
+explanatory_variable_map('bottom.temperature', c(1971, 1981, 1991, 
+                                                 2001, 2011, 2019))
+explanatory_variable_map('surface.temperature', c(1971, 1981, 1991, 
+                                                 2001, 2011, 2019))
 
 
 ## ggplot map of abundance for a given species
+species_abundance_map = function(species, years) {
+  
+  # Function uses predefined data of the gulf and the number_sf df,but takes in
+  # the species of interest to plot and returns a map of it's abundance
+  #
+  # Parameters:
+  #            species (TYPE = character): species name of interest 
+  #                                      passed as the name of the column
+  #            years (TYPE = char vector): concatenated vector of the study 
+  #                                       years of interested passed as integers
+  # Returns:
+  #            plot (TYPE = ggplot object): plot of desired variable
+  #
+  # EXAMPLE USAGE:
+  # > species_abundance_map('WHITE HAKE', c(1971, 1981, 1991))
+  #
+  
+  return(
+   
+    ggplot() +
+      geom_sf(data = gulf_sf, fill = "white") +
+      geom_sf(data = filter(number_sf, 
+                            # pick a sequence of years to check out
+                            year %in% years), 
+              aes_string(col = `species`)) +
+      facet_wrap(~year) +
+      scale_color_viridis_c(option = "plasma") +
+      labs(col = paste0("Abundance of \n",
+                        str_to_lower(gsub('`','',species)))) +
+             theme_void()  
+  
+  )
+}
 
-ggplot() +
-  geom_sf(data = gulf_sf, fill = "white") +
-  geom_sf(data = filter(number_sf, 
-                        # pick a sequence of years to check out
-                        year %in% c(1971, 1981, 1991, 2001, 2011, 2019)), 
-          aes(col = `WHITE HAKE`)) +
-  facet_wrap(~year) +
-  scale_color_viridis_c(option = "plasma") +
-  labs(col = "Abundance of \nWhite hake") +
-  theme_void() 
+species_abundance_map('`WHITE HAKE`', c(1971, 1981, 1991))
