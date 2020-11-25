@@ -14,7 +14,7 @@ library(tidyverse)
 # library(inlatools) # remotes::install_github("inbo/inlatools")
 # devtools::install_github("gfalbery/ggregplot")
 library(ggregplot)
-#library(animation)
+library(animation)
 ```
 
 ## Prepare the data
@@ -32,10 +32,6 @@ gulf <- readRDS("data/gulf.RDS")
 head(number@sp)
 head(number@time) # it has a time zone structure!!
 head(number@endTime)
-
-# subset to species of focus
-#whitehake <- number
-#whitehake@data <- subset(whitehake@data, select = "WHITE HAKE")
 ```
 
 ## Data exploration
@@ -130,7 +126,7 @@ p1 / p2 / p3
 This mesh size reflects the range of coordinates in space. Changing to a smaller value, like 35000, gives a more appropriate mesh.
 
 ```{r spatial-mesh}
-maxEdge <- 35000
+maxEdge <- 25000
 meshSpace <- inla.mesh.2d(boundary = gulf,
                           max.edge = maxEdge*c(0.5,2),
                           offset = c(10000,20000),
@@ -160,16 +156,16 @@ time <- as.numeric(number@endTime)/60 # Number of minutes since Jan 1, 1970
 timeBasis <- time - 884844 # Time starting at 1
 
 # Division points
-# timeGr <- 11
-# timeSeq <- seq(min(timeBasis),
-#                max(timeBasis),
-#                length = timeGr)
-# meshTime <- inla.mesh.1d(timeSeq)
+ timeGr <- 11
+ timeSeq <- seq(min(timeBasis),
+                max(timeBasis),
+                length = timeGr)
+meshTime <- inla.mesh.1d(timeSeq)
 # ^ This divides time into 11 bins of minutes since 1970.
-timeGr <- 2
+#timeGr <- 2
 
 # try with two extreme time points, just to simplify the model run
-meshTime <- inla.mesh.1d(c(min(timeBasis), max(timeBasis)))
+#meshTime <- inla.mesh.1d(c(min(timeBasis), max(timeBasis)))
 ```
 
 How many estimations will be carried out?
@@ -258,11 +254,63 @@ Stack <- inla.stack(data=list(whitehake = number@data$`WHITE HAKE`),
 
 ## Step 9 - Building the model (Finally!)
 
-```{r build-model}
-# to find the distributions that are available
-# inla.models()$likelihood$poisson
+## Model selection
 
-form <- whitehake ~ 0 + bTemp + bSal + bDep +
+```{r build-candidate-models, eval = FALSE}
+# build candidate models --- only run with two time points. otherwise, eternal
+form_0 <- whitehake ~ 0 +
+  f(field, model=SPDE, group = field.group, 
+    control.group=list(model='ar1', hyper=hSpec)) 
+form_1 <- whitehake ~ 0 + bTemp +
+  f(field, model=SPDE, group = field.group, 
+    control.group=list(model='ar1', hyper=hSpec)) 
+form_2 <- whitehake ~ 0 + bSal +
+  f(field, model=SPDE, group = field.group, 
+    control.group=list(model='ar1', hyper=hSpec)) 
+form_3 <- whitehake ~ 0 + bDep +
+  f(field, model=SPDE, group = field.group, 
+    control.group=list(model='ar1', hyper=hSpec)) 
+form_4 <- whitehake ~ 0 + bTemp + bSal +
+  f(field, model=SPDE, group = field.group, 
+    control.group=list(model='ar1', hyper=hSpec)) 
+form_5 <- whitehake ~ 0 + bTemp + bDep +
+  f(field, model=SPDE, group = field.group, 
+    control.group=list(model='ar1', hyper=hSpec)) 
+form_6 <- whitehake ~ 0 + bSal + bDep +
+  f(field, model=SPDE, group = field.group, 
+    control.group=list(model='ar1', hyper=hSpec)) 
+form_7 <- whitehake ~ 0 + bTemp + bSal + bDep +
+  f(field, model=SPDE, group = field.group, # how they're grouped
+    control.group=list(model='ar1', hyper=hSpec)) # build with model parameters
+forms_ls <- list(form_0, form_1, form_2, form_3, form_4, form_5, form_6, form_7)
+
+# evaluate each model
+model_ls <- vector("list", length = length(forms_ls))
+for(i in 1:length(model_ls)){
+  model_ls[[i]] <- inla(forms_ls[[i]],
+                        data = inla.stack.data(Stack),
+                        family="gaussian",
+                        control.family = list(link="identity"),
+                        control.predictor = list(A = inla.stack.A(Stack), 
+                                                 compute = TRUE, 
+                                                 link = 1),
+                        control.compute = list(waic = TRUE, config = TRUE))
+}
+
+# extract waic to compare
+waic_df <- data.frame(model = 1:7, waic = NA)
+for(i in 1:nrow(waic_df)){
+  waic_df[i,2] <- model_ls[[i]]$waic$waic
+}
+# find lowest waic (it's model #4)
+waic_df[which(waic_df$waic == min(waic_df$waic)),]
+
+#saveRDS(model_gaussian, "outputs/whitehake_model.RDS")
+```
+
+## Build chosen model
+```{r build-model, eval = TRUE, cache = TRUE}
+form <- whitehake ~ 0 + bTemp + bSal +
         f(field, # temporal autocorr
           model=SPDE, # spatial autocorr structure
           group = field.group, # how they're grouped
@@ -278,7 +326,6 @@ model_gaussian <- inla(form,
                                        link = 1),
               control.compute = list(waic = TRUE,
                                      config = TRUE))
-#saveRDS(model_gaussian, "outputs/whitehake_model.RDS")
 ```
 
 ## Checking and interpreting the model
@@ -311,7 +358,7 @@ plot(x = model_gaussian$summary.fitted.values$mean[1:nrow(number@data)],
      y = E1,
      xlab = "Fitted values",
      ylab = "Pearson residuals",
-     xlim = c(0,1))
+     xlim = c(0, 1))
 abline(h = 0, lty = 2)
 # note: there's a value at 130...
 ```
@@ -389,22 +436,21 @@ raster.975 <- stack(map.975)
   # plot(meshSpace, add = TRUE)
 
 # reorganise
-# for(i in 1:5){
-#   values(rasterMean)[,i] <- as.vector(t(mapMean[[i]]))
-#   values(raster.025)[,i] <- as.vector(t(map.025[[i]]))
-#   values(raster.975)[,i] <- as.vector(t(map.975[[i]]))
-# }
+for(i in 1:5){
+  values(rasterMean)[,i] <- as.vector(t(mapMean[[i]]))
+  values(raster.025)[,i] <- as.vector(t(map.025[[i]]))
+  values(raster.975)[,i] <- as.vector(t(map.975[[i]]))
+}
 
 # Mask the region to keep only the region of interest
 rasterMeanMask <- mask(rasterMean, gulf)
 raster.025Mask <- mask(raster.025, gulf)
 raster.975Mask <- mask(raster.975, gulf)
-image(rasterMeanMask)
-plot(gulf, add = TRUE)
-
+# image(rasterMeanMask)
+# plot(gulf, add = TRUE)
 ```
 
-```{r map-predictions}
+```{r map-predictions, fig.height=4}
 # Map the results
 par(mfrow = c(2,3), mar = c(1,1,3,1))
 
@@ -415,38 +461,62 @@ zlimRange <- range(values(raster.025Mask[[i]]),
 }
 
 # convert to data frames for ggplot
-raster.025Mask_df <- as.data.frame(raster.025Mask, xy = TRUE, na.rm = TRUE)
-rasterMeanMask_df <- as.data.frame(rasterMeanMask, xy = TRUE, na.rm = TRUE)
-raster.975Mask_df <- as.data.frame(raster.975Mask, xy = TRUE, na.rm = TRUE)
+raster.025Mask_df <- as.data.frame(raster.025Mask, xy = TRUE, na.rm = TRUE) %>%
+  pivot_longer(cols = 3:ncol(.)) %>%
+  mutate(quant = "Lower (0.025)")
 
+rasterMeanMask_df <- as.data.frame(rasterMeanMask, xy = TRUE, na.rm = TRUE) %>%
+  pivot_longer(cols = 3:ncol(.)) %>%
+  mutate(quant = "Mean")
 
-# function to plot model results using ggplot2
-result_map <- function(raster_df, column_name, title){
-  p <- ggplot() +
-    geom_raster(data = raster_df, 
-                aes(x = x, y = y, fill = get(column_name))) + 
+raster.975Mask_df <- as.data.frame(raster.975Mask, xy = TRUE, na.rm = TRUE) %>%
+  pivot_longer(cols = 3:ncol(.)) %>%
+  mutate(quant = "Higher (0.975)")
+
+# bind together
+raster_df <- rbind(raster.025Mask_df, rasterMeanMask_df, raster.975Mask_df)
+raster_df$quant <- factor(raster_df$quant, levels = c("Lower (0.025)", "Mean", "Higher (0.975)"))
+
+# make this more automatized later (label with years) 
+raster_df$name <- factor(raster_df$name, levels = c("layer.1",
+                                                    "layer.2",
+                                                    "layer.3",
+                                                    "layer.4",
+                                                    "layer.5",
+                                                    "layer.6",
+                                                    "layer.7",
+                                                    "layer.8", 
+                                                    "layer.9", 
+                                                    "layer.10", 
+                                                    "layer.11"))
+
+p <- ggplot() +
+    geom_raster(data = filter(raster_df, quant == "Mean"), 
+                aes(x = x, y = y, fill = value)) + 
     labs(fill = "Abundance") +
     scale_fill_distiller(palette = "RdBu", 
-                         limits = c(-max(abs(raster.975Mask_df[,column_name])), 
-                                    max(abs(raster.975Mask_df[,column_name])))) +
-    theme_void()  
-  return(p)
-}
-
-# 2.5% credible limit
-p1.025 <- result_map(raster.025Mask_df, "layer.1") + theme(legend.position = "none")
-p2.025 <- result_map(raster.025Mask_df, "layer.2") + theme(legend.position = "none")
-
-# mean
-p1.mean <- result_map(rasterMeanMask_df, "layer.1") + theme(legend.position = "none")
-p2.mean <- result_map(rasterMeanMask_df, "layer.2") + theme(legend.position = "none")
-
-# 97.5% credible limit
-p1.975 <- result_map(raster.975Mask_df, "layer.1") + theme(legend.position = "bottom")
-p2.975 <- result_map(raster.975Mask_df, "layer.2") + theme(legend.position = "bottom")
-
-# patchwork together
-(p1.025 + p2.025) / (p1.mean + p2.mean) / (p1.975 + p2.975)
+                         limits = c(-max(abs(raster_df$value)), 
+                                    max(abs(raster_df$value)))) +
+    #facet_wrap(~quant) +
+    theme_void() +
+  gganimate::transition_states(name, transition_length=.6, ) +
+  labs(title = 'Time group: {closest_state}')
+p
+# save!
+gganimate::anim_save("predictions.gif", animation = p, path = "figures/")
 ```
 
-Compare the models with wAIC
+Each time step:
+```{r plot all time steps, fig.height = 13}
+p2 <- ggplot() +
+    geom_raster(data = raster_df, 
+                aes(x = x, y = y, fill = value)) + 
+    labs(fill = "Abundance") +
+    scale_fill_distiller(palette = "RdBu", 
+                         limits = c(-max(abs(raster_df$value)), 
+                                    max(abs(raster_df$value)))) +
+    facet_grid(name~quant) +
+    theme_void() 
+p2
+```
+
