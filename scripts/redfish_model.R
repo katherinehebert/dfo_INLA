@@ -15,7 +15,7 @@ library(here)
 library(animation)
 library(raster)
 library(patchwork)
-library(ggregplot)
+#library(ggregplot)
 
 
 #read in all data
@@ -69,68 +69,159 @@ A = inla.spde.make.A(meshSpace,
                      group = timeBasis,
                      group.mesh = meshTime)
 
-######## model fitting for the basic model we did in the group
+######## model fitting for some other models to compare
+
+#include depth & random effect for the full model
+# Alist_btbsdp_rand = as.list(rep(1,5))
+# Alist_btbsdp_rand[[1]] = A
+# 
+# effect_btbsdp_rand = list(Field,
+#                    bTemp =  explan@data$bottom.temperature,
+#                    bSal = explan@data$bottom.salinity,
+#                    depth = explan@data$depth,
+#                    stratum = explan@data$stratum)
+# 
+# Stack_redfish_btbdp_rand = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
+#                                A = Alist_btbsdp_rand,
+#                                effects = effect_btbsdp_rand,
+#                                tag="basis")
+# 
+# form_redfish_btbdp_rand = redfish ~ 0 + bTemp + bSal + depth +
+#   f(field, model=SPDE,
+#     group = field.group,
+#     control.group=list(model='ar1', hyper=hSpec))
+# 
+# model_redfish_btbdp_rand = inla(form_redfish_btbdp_rand,
+#                          data = inla.stack.data(Stack_redfish_btbdp_rand),
+#                          family="gaussian",
+#                          control.family =list(link="identity", hyper = list(theta=precPrior)),
+#                          control.predictor=list(A=inla.stack.A(Stack_redfish_btbdp_rand),
+#                                                 compute=TRUE, link = 1),
+#                          control.compute=list(waic=TRUE),
+#                          verbose = FALSE)
+# 
+# summary(model_redfish_btbdp_rand)
+
+# model with all fixed but no random
+Alist_btbsdp = as.list(rep(1,4))
+Alist_btbsdp[[1]] = A
+
+effect_btbsdp = list(Field,
+                          bTemp =  explan@data$bottom.temperature,
+                          bSal = explan@data$bottom.salinity,
+                          depth = explan@data$depth)
+
+Stack_redfish_btbdp = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
+                                      A = Alist_btbsdp,
+                                      effects = effect_btbsdp,
+                                      tag="basis")
+
+form_redfish_btbdp = redfish ~ 0 + bTemp + bSal + depth +
+  f(field, model=SPDE,
+    group = field.group,
+    control.group=list(model='ar1', hyper=hSpec))
+
+model_redfish_btbdp = inla(form_redfish_btbdp,
+                                data = inla.stack.data(Stack_redfish_btbdp),
+                                family="gaussian",
+                                control.family =list(link="identity", hyper = list(theta=precPrior)),
+                                control.predictor=list(A=inla.stack.A(Stack_redfish_btbdp),
+                                                       compute=TRUE, link = 1),
+                                control.compute=list(waic=TRUE),
+                                verbose = FALSE)
+
+summary(model_redfish_btbdp)
+# model fitting for the basic model we did in the group (no random no depth)
 Alist_btbs = as.list(rep(1,3))
 Alist_btbs[[1]] = A
 
 effect_btbs = list(Field,
-              bTemp =  explan@data$bottom.temperature,
-              bSal = explan@data$bottom.salinity)
-
-Stack_redfish_btb = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
-                   A = Alist_btbs,
-                   effects = effect_btbs,
-                   tag="basis")
-
-
-form_redfish_btb = redfish ~ 0 + bTemp + bSal +
-  f(field, model=SPDE,
-    group = field.group,
-    control.group=list(model='ar1', hyper=hSpec))
-
-model_redfish_btb = inla(form_redfish_btb,
-             data = inla.stack.data(Stack_redfish_btb),
-             family="gaussian",
-             control.family =list(link="identity", hyper = list(theta=precPrior)),
-             control.predictor=list(A=inla.stack.A(Stack_redfish_btb),
-                                    compute=TRUE, link = 1),
-             control.compute=list(waic=TRUE),
-             verbose = FALSE)
-
-summary(model_redfish_btb)
-
-######## model fitting for some other models to compare
-
-#include depth & random effect for the full model
-Alist_btbsdp_rand = as.list(rep(1,5))
-Alist_btbsdp_rand[[1]] = A
-
-effect_btbsdp_rand = list(Field,
                    bTemp =  explan@data$bottom.temperature,
-                   bSal = explan@data$bottom.salinity,
-                   deep = explan@data$depth,
-                   stratum = explan@data$stratum)
+                   bSal = explan@data$bottom.salinity)
 
-Stack_redfish_btbdp_rand = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
-                               A = Alist_btbsdp_rand,
-                               effects = effect_btbsdp_rand,
+Stack_redfish_btbs = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
+                               A = Alist_btbs,
+                               effects = effect_btbs,
                                tag="basis")
-s
-form_redfish_btbdp_rand = redfish ~ 0 + bTemp + bSal + deep +
+
+
+form_redfish_btbs = redfish ~ 0 + bTemp + bSal +
   f(field, model=SPDE,
     group = field.group,
     control.group=list(model='ar1', hyper=hSpec))
 
-model_redfish_btbdp_rand = inla(form_redfish_btbdp_rand,
-                         data = inla.stack.data(Stack_redfish_btbdp_rand),
+model_redfish_btbs = inla(form_redfish_btbs,
+                         data = inla.stack.data(Stack_redfish_btbs),
                          family="gaussian",
                          control.family =list(link="identity", hyper = list(theta=precPrior)),
-                         control.predictor=list(A=inla.stack.A(Stack_redfish_btbdp_rand),
+                         control.predictor=list(A=inla.stack.A(Stack_redfish_btbs),
                                                 compute=TRUE, link = 1),
                          control.compute=list(waic=TRUE),
                          verbose = FALSE)
 
-summary(model_redfish_btbdp_rand)
+summary(model_redfish_btbs)
+
+# model with bottom temperature and depth 
+Alist_btdp = as.list(rep(1,3))
+Alist_btdp[[1]] = A
+
+effect_btdp = list(Field,
+                   bTemp =  explan@data$bottom.temperature,
+                   depth = explan@data$depth)
+
+Stack_redfish_btdp = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
+                               A = Alist_btdp,
+                               effects = effect_btdp,
+                               tag="basis")
+
+
+form_redfish_btdp = redfish ~ 0 + bTemp + depth +
+  f(field, model=SPDE,
+    group = field.group,
+    control.group=list(model='ar1', hyper=hSpec))
+
+model_redfish_btdp = inla(form_redfish_btdp,
+                         data = inla.stack.data(Stack_redfish_btdp),
+                         family="gaussian",
+                         control.family =list(link="identity", hyper = list(theta=precPrior)),
+                         control.predictor=list(A=inla.stack.A(Stack_redfish_btdp),
+                                                compute=TRUE, link = 1),
+                         control.compute=list(waic=TRUE),
+                         verbose = FALSE)
+
+summary(model_redfish_btdp)
+
+# model with depth and bottom salinity
+Alist_bsdp = as.list(rep(1,3))
+Alist_bsdp[[1]] = A
+
+effect_bsdp = list(Field,
+                   bSal =  explan@data$bottom.salinity,
+                   depth = explan@data$depth)
+
+Stack_redfish_bsdp = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
+                                A = Alist_bsdp,
+                                effects = effect_bsdp,
+                                tag="basis")
+
+
+form_redfish_bsdp = redfish ~ 0 + bTemp + depth +
+  f(field, model=SPDE,
+    group = field.group,
+    control.group=list(model='ar1', hyper=hSpec))
+
+model_redfish_bsdp = inla(form_redfish_bsdp,
+                          data = inla.stack.data(Stack_redfish_bsdp),
+                          family="gaussian",
+                          control.family =list(link="identity", hyper = list(theta=precPrior)),
+                          control.predictor=list(A=inla.stack.A(Stack_redfish_bsdp),
+                                                 compute=TRUE, link = 1),
+                          control.compute=list(waic=TRUE),
+                          verbose = FALSE)
+
+summary(model_redfish_bsdp)
+
+
 
 #Extracting fitted values and residuals
 #Once a model has been executed model validation has to be applied and
@@ -139,14 +230,14 @@ summary(model_redfish_btbdp_rand)
 #Equation (23.1) or (23.3). The expected values μ
 #i are called ExpY in the
 #code below and are obtained via
-ExpY <- I2a$summary.fitted.values[1:N,"mean"]
+#ExpY <- I2a$summary.fitted.values[1:N,"mean"]
 #For the variance we also need the θ, which is obtained via
-phi1 <- I2a$summary.hyper[1, "mean"]
+#phi1 <- I2a$summary.hyper[1, "mean"]
 #The posterior mean value of θ is 12.86. The variance is then given by
-VarY <- ExpY * (1 - ExpY) / (1 + phi1)
+#VarY <- ExpY * (1 - ExpY) / (1 + phi1)
 #And once we have the mean and the variance we can calculate Pearson
 #residuals.
-E1 <- (CR2$CCAPropTran - ExpY) / sqrt(VarY)
+#E1 <- (CR2$CCAPropTran - ExpY) / sqrt(VarY)
 
 # Dimention of the raster
 stepsize = 1000
