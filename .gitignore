@@ -38,3 +38,4 @@ vignettes/*.pdf
 # ignore data and references
 data/
 References/
+whitehake_files/
