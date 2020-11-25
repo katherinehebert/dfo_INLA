@@ -450,26 +450,3 @@ p2.975 <- result_map(raster.975Mask_df, "layer.2") + theme(legend.position = "bo
 ```
 
 Compare the models with wAIC
-
-Attempt with gamma distribution
-
-```{r}
-
-# try to see residuals of the model_gaussian
-hist(number@data$`WHITE HAKE`) 
-
-precGamma <- list(prior = "pc.gamma", param = c(1, .1))
-
-# not running because y has zeros?
-model_gamma <- inla(form,
-              data = inla.stack.data(Stack),
-              family="gamma",
-              control.family = list(link = "log",
-                hyper = list(theta = list(precGamma$prior))),
-              control.predictor = list(A = inla.stack.A(Stack), 
-                                       compute = TRUE, 
-                                       link = 1),
-              control.compute = list(waic = TRUE,
-                                     config = TRUE))
-```
-
