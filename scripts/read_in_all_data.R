@@ -12,6 +12,7 @@
 require(here)
 require(stringr)
 require(tidyverse)
+library(patchwork)
 
 #set the directory using this super hacky method to keep the data private
 dir = paste0(str_sub(here(), 1, -9),'ciee-stlawrence/data')
@@ -38,5 +39,4 @@ for(i in 1:ncol(number@data)) {
     number@data[,i] = as.integer(number@data[,i])
   }
 }
-str(number@data)
 
