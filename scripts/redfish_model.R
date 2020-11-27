@@ -24,7 +24,7 @@ source(here('./scripts/read_in_all_data.R'))
 #make some meshes
 redfish = number@data$`REDFISH UNSEPARATED`
 
-maxEdge = 35000
+maxEdge = 25000
 meshSpace = inla.mesh.2d(boundary = gulf, 
                          max.edge = maxEdge*c(0.5,2),
                          offset = c(100000,20000),
@@ -43,7 +43,7 @@ meshSpace$n
 time = as.numeric(fish_rich@endTime)/60
 timeBasis = time - 884844
 
-timeGr = 2
+timeGr = 11
 timeSeq = seq(min(timeBasis), max(timeBasis), length = timeGr)
 
 meshTime = inla.mesh.1d(timeSeq)
@@ -103,20 +103,21 @@ A = inla.spde.make.A(meshSpace,
 # summary(model_redfish_btbdp_rand)
 
 # model with all fixed but no random
-Alist_btbsdp = as.list(rep(1,4))
+Alist_btbsdp = as.list(rep(1,5))
 Alist_btbsdp[[1]] = A
 
 effect_btbsdp = list(Field,
                           bTemp =  explan@data$bottom.temperature,
                           bSal = explan@data$bottom.salinity,
-                          depth = explan@data$depth)
+                          depth = explan@data$depth,
+                     intercept = rep(1,nrow(explan@data)))
 
 Stack_redfish_btbdp = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
                                       A = Alist_btbsdp,
                                       effects = effect_btbsdp,
                                       tag="basis")
 
-form_redfish_btbdp = redfish ~ 0 + bTemp + bSal + depth +
+form_redfish_btbdp = redfish ~ 0 + bTemp + bSal + depth + intercept +
   f(field, model=SPDE,
     group = field.group,
     control.group=list(model='ar1', hyper=hSpec))
@@ -131,6 +132,25 @@ model_redfish_btbdp = inla(form_redfish_btbdp,
                                 verbose = FALSE)
 
 summary(model_redfish_btbdp)
+
+ExpY <- model_redfish_btbdp$summary.fitted.values[1:nrow(number@data),"mean"]
+
+#For the variance we also need the posterior mean value of θ, which is obtained via
+phi1 <- model_redfish_btbdp$summary.hyper[1, "mean"]
+
+#The variance is then given by
+VarY <- ExpY * (1 - ExpY) / (1 + phi1)
+
+# And once we have the mean and the variance we can calculate Pearson residuals.
+E1 <- (number@data$`REDFISH UNSEPARATED` - ExpY) / sqrt(VarY)
+
+par(mfrow = c(1,1), mar = c(5,5,2,2), cex.lab = 1.5)
+plot(x = model_redfish_btbdp$summary.fitted.values$mean[1:nrow(number@data)], 
+     y = E1,
+     xlab = "Fitted values",
+     ylab = "Pearson residuals",
+     xlim = c(0, 1))
+abline(h = 0, lty = 2)
 # model fitting for the basic model we did in the group (no random no depth)
 Alist_btbs = as.list(rep(1,3))
 Alist_btbs[[1]] = A
@@ -260,11 +280,11 @@ map.975 = vector("list", length = timeGr)
 for(i in 1:timeGr){
   # Model prediction
   fitMean = inla.mesh.project(mapBasis, 
-                              model_redfish$summary.random$field$mean[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                              model_redfish_btbdp$summary.random$field$mean[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
   fit.025 = inla.mesh.project(mapBasis, 
-                              model_redfish$summary.random$field$`0.025quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                              model_redfish_btbdp$summary.random$field$`0.025quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
   fit.975 = inla.mesh.project(mapBasis, 
-                              model_redfish$summary.random$field$`0.975quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                              model_redfish_btbdp$summary.random$field$`0.975quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
   
   # Build maps with confidence intervals
   mapMean[[i]] = raster(t(fitMean[,ncol(fitMean):1]),
@@ -343,3 +363,22 @@ p2.975 <- result_map(raster.975Mask_df, "layer.2") + theme(legend.position = "bo
 (p1.025 + p2.025) / (p1.mean + p2.mean) / (p1.975 + p2.975)
 
 
+
+
+
+###################################### how to do random effects:
+form_redfish_btbdp = redfish ~ 0 + bTemp + bSal + depth + intercept +
+  f(field, model=SPDE,
+    group = field.group,
+    control.group=list(model='ar1', hyper=hSpec))
+#each different level of our random sample is a random effect - similar to mgcv
+form = y ~ f(ID = 1:nrow(explan@data), model = "iid")
+
+model_redfish_btbdp = inla(form_redfish_btbdp,
+                           data = inla.stack.data(Stack_redfish_btbdp),
+                           family="gaussian",
+                           control.family =list(link="identity", hyper = list(theta=precPrior)),
+                           control.predictor=list(A=inla.stack.A(Stack_redfish_btbdp),
+                                                  compute=TRUE, link = 1),
+                           control.compute=list(waic=TRUE),
+                           verbose = FALSE)
