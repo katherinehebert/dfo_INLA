@@ -24,8 +24,8 @@ This data is STDIF structure - a class for unstructured spatio-temporal data, wi
 The 0s actually reflect that there were no observations at that time - in other words, they are _not_ false absences, and should not be removed.
 
 ```{r load data, echo = FALSE}
-explan <- readRDS("data/explan.RDS")
-number <- readRDS("data/number.RDS")
+explan <- readRDS("data/nov_25/explan.RDS")
+number <- readRDS("data/nov_25/number.RDS")
 gulf <- readRDS("data/gulf.RDS")
 
 # STDIF = space, time, data frame, i = irregular grid
@@ -79,44 +79,27 @@ st_crs(explan_sf) <- explan@sp@proj4string # set coordinate ref system
 gulf_sf <- st_as_sf(gulf)
 st_crs(gulf_sf) <- gulf@proj4string # set coordinate ref system
 
-# maps
-
-# ggplot map of explanatory variable
-p1 <- ggplot() +
+# function ot make ggplot map of explanatory variable
+explan_map <- function(variable, legend_title){
+  ggplot() +
   geom_sf(data = gulf_sf, fill = "white") +
   geom_sf(data = filter(explan_sf, 
                         # pick a sequence of years to check out
                         year %in% c(1971, 1981, 1992, 2001, 2011, 2019)),
-          aes(col = bottom.temperature)) +
+          aes(col = get(variable))) +
   facet_wrap(~year) +
   scale_color_viridis_c(option = "viridis") +
-  labs(color = "Bottom \ntemperature") +
-  theme_void() 
-
-p2 <- ggplot() +
-  geom_sf(data = gulf_sf, fill = "white") +
-  geom_sf(data = filter(explan_sf, 
-                        # pick a sequence of years to check out
-                        year %in% c(1971, 1981, 1992, 2001, 2011, 2019)),
-          aes(col = bottom.salinity)) +
-  facet_wrap(~year) +
-  scale_color_viridis_c(option = "viridis") +
-  labs(color = "Bottom \nsalinity") +
+  labs(color = legend_title) +
   theme_void()
+}
 
-p3 <- ggplot() +
-  geom_sf(data = gulf_sf) +
-  geom_sf(data = filter(explan_sf, 
-                        # pick a sequence of years to check out
-                        year %in% c(1971, 1981, 1992, 2001, 2011, 2019)),
-          aes(col = depth)) +
-  facet_wrap(~year) +
-  scale_color_viridis_c(option = "viridis") +
-  labs(color = "Depth") +
-  theme_void() 
-
+# maps
+p1 <- explan_map("bottom.temperature", "Bottom \ntemperature")
+p2 <- explan_map("bottom.salinity", "Bottom \nsalinity")
+p3 <- explan_map("depth", "Depth")
+p4 <- explan_map("slope", "Slope")
 # patchwork together!
-p1 / p2 / p3
+(p1 + p2) / (p3 + p4)
 ```
 
 
@@ -125,14 +108,37 @@ p1 / p2 / p3
 
 This mesh size reflects the range of coordinates in space. Changing to a smaller value, like 35000, gives a more appropriate mesh.
 
-```{r spatial-mesh}
-maxEdge <- 25000
-meshSpace <- inla.mesh.2d(boundary = gulf,
-                          max.edge = maxEdge*c(0.5,2),
-                          offset = c(10000,20000),
-                          cutoff = maxEdge/2)
+```{r build-meshes}
+#_____________________
+## Reorganise the data
+#_____________________
+### Space
+xy <- coordinates(explan)
+colnames(xy) <- c("locx", "locy")
 
-# plot points under the mesh, to see if it makes sense
+### Time
+time <- as.numeric(explan@endTime)/60 # Number of minutes since Jan 1, 1970 
+timeBasis <- time - 884844 # Time starting at 1
+
+#______________
+## Build meshes
+#______________
+### Temporal mesh
+timeGr <- 11
+timeSeq <- seq(min(timeBasis),
+               max(timeBasis),
+               length = timeGr)
+
+meshTime <- inla.mesh.1d(timeSeq)
+
+### Spatial mesh
+maxEdge <- 35000
+meshSpace <- inla.mesh.2d(boundary = gulf, 
+                          max.edge=maxEdge * c(0.5,2),
+                          cutoff=maxEdge/4,
+                          offset = c(10000,20000))
+
+# plot points under the mesh
 par(mar = c(1,1,1,1))
 plot(number@sp, pch = 19, cex = 0.2, col = "red")
 plot(gulf, add = TRUE)
@@ -148,26 +154,6 @@ plot(meshSpace, main = "", asp = 1, add = TRUE)
 meshSpace$n
 ```
 
-
-```{r time-mesh}
-### Time
-time <- as.numeric(number@endTime)/60 # Number of minutes since Jan 1, 1970 
-
-timeBasis <- time - 884844 # Time starting at 1
-
-# Division points
- timeGr <- 11
- timeSeq <- seq(min(timeBasis),
-                max(timeBasis),
-                length = timeGr)
-meshTime <- inla.mesh.1d(timeSeq)
-# ^ This divides time into 11 bins of minutes since 1970.
-#timeGr <- 2
-
-# try with two extreme time points, just to simplify the model run
-#meshTime <- inla.mesh.1d(c(min(timeBasis), max(timeBasis)))
-```
-
 How many estimations will be carried out?
 ```{r complexity-mesh}
 meshSpace$n * meshTime$n
@@ -176,12 +162,12 @@ meshSpace$n * meshTime$n
 ## Step 2 - Define the stochastic partial differential equation
 
 ```{r spde, echo = FALSE}
-SPDE <- inla.spde2.pcmatern(mesh=meshSpace, # where we want to estimate
-                            alpha=2, # must be between 0 and 2. this makes it curved rather than too sharp
-                            prior.range=c(1000, 0.5), # distance at which the prior levels off;
+SPDE <- inla.spde2.pcmatern(mesh = meshSpace, # where we want to estimate
+                            alpha = 2, # must be between 0 and 2. this makes it curved rather than too sharp
+                            prior.range = c(1000, 0.5), # distance at which the prior levels off;
                             # at a range of 100m, things should level off
                             # 0.5 means this is 50% likely. this gives a weight to the priors.
-                            prior.sigma=c(35, 0.5) # amount of variance where it plateaus (slide 36/41)
+                            prior.sigma = c(35, 0.5) # amount of variance where it plateaus (slide 36/41)
                             )
 # basis to build spatial structure of the model
 
@@ -198,7 +184,7 @@ hSpec <- list(theta=list(prior='pccor1', param=c(0.2, 0.9)))
 
 # Precision likelihood 
 ## (negative binomial or any distribution that has more than one parameter)
-# precPrior <- list(prior='pc.prec', param=c(1, 0.01))
+precPrior <- list(prior='pc.prec', param=c(1, 0.01))
 # guessing it's 1 with a confidence of .01, which is super low.
 
 # note ^ is not useful if using a Poisson.
@@ -227,19 +213,20 @@ A <- inla.spde.make.A(meshSpace,
 ## Step 6 - Organise the A matrix into a list
 
 ```{r a-matrix-list}
-Alist <- as.list(rep(1,4)) # list with single values
+Alist <- as.list(rep(1,5)) # list with single values
 Alist[[1]] <- A
 ```
 
 
 ## Step 7 - Organise the effects (spatial autocorrelation structure and explanatory variables)
 
-Here, we're using two variables about the bottom conditions, because White hake is a groundfish.
+Here, we're using variables about the bottom conditions, because White hake is a groundfish.
 ```{r org-effects}
 effect <- list(Field,
                bTemp =  explan@data$bottom.temperature,
                bSal = explan@data$bottom.salinity,
-               bDep = explan@data$depth)
+               bDep = explan@data$depth,
+               strat = explan@data$stratum)
 ```
 
 
@@ -305,22 +292,28 @@ for(i in 1:nrow(waic_df)){
 # find lowest waic (it's model #4)
 waic_df[which(waic_df$waic == min(waic_df$waic)),]
 
-#saveRDS(model_gaussian, "outputs/whitehake_model.RDS")
+#saveRDS(model, "outputs/whitehake_model.RDS")
 ```
 
 ## Build chosen model
 ```{r build-model, eval = TRUE, cache = TRUE}
 form <- whitehake ~ 0 + bTemp + bSal +
-        f(field, # temporal autocorr
-          model=SPDE, # spatial autocorr structure
-          group = field.group, # how they're grouped
-          control.group=list(model='ar1', hyper=hSpec) # build with model parameters
-          )
+  f(field, # temporal autocorr
+    model=SPDE, # spatial autocorr structure
+    group = field.group, # how they're grouped
+    control.group=list(model='ar1', hyper=hSpec) # build with model parameters
+  ) +
+  f(
+    strat,
+    model = "iid",
+    hyper = list(theta = list(prior = "gaussian",
+                              param = c(0, 0.001)))
+  )
 
-model_gaussian <- inla(form,
+model <- inla(form,
               data = inla.stack.data(Stack),
-              family="gaussian",
-              control.family = list(link="identity"),
+              family="nbinomial",
+              control.family = list(link="log", hyper = list(theta=precPrior)),
               control.predictor = list(A = inla.stack.A(Stack), 
                                        compute = TRUE, 
                                        link = 1),
@@ -331,19 +324,19 @@ model_gaussian <- inla(form,
 ## Checking and interpreting the model
 
 ```{r output-model}
-summary(model_gaussian)
+summary(model)
 ```
 
 ```{r check-model}
-Efxplot(list(model_gaussian)) + theme_classic()
+Efxplot(list(model)) + theme_classic()
 # from Coding Club tutorial: "NB: There are no P values in INLA. Importance or significance of variables can be deduced by examining the overlap of their 2.5% and 97.5% posterior estimates with zero."
 ```
 
 ```{r check-residuals-Zuurbook}
-ExpY <- model_gaussian$summary.fitted.values[1:nrow(number@data),"mean"]
+ExpY <- model$summary.fitted.values[1:nrow(number@data),"mean"]
 
 #For the variance we also need the posterior mean value of θ, which is obtained via
-phi1 <- model_gaussian$summary.hyper[1, "mean"]
+phi1 <- model$summary.hyper[1, "mean"]
 
 #The variance is then given by
 VarY <- ExpY * (1 - ExpY) / (1 + phi1)
@@ -354,7 +347,7 @@ E1 <- (number@data$`WHITE HAKE` - ExpY) / sqrt(VarY)
 # Apply model validation
 # Figure 23.11
 par(mfrow = c(1,1), mar = c(5,5,2,2), cex.lab = 1.5)
-plot(x = model_gaussian$summary.fitted.values$mean[1:nrow(number@data)], 
+plot(x = model$summary.fitted.values$mean[1:nrow(number@data)], 
      y = E1,
      xlab = "Fitted values",
      ylab = "Pearson residuals",
@@ -404,11 +397,11 @@ map.975 <- vector("list", length = timeGr)
 for(i in 1:timeGr){
   # Model prediction
   fitMean <- inla.mesh.project(mapBasis, 
-                          model_gaussian$summary.random$field$mean[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                          model$summary.random$field$mean[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
   fit.025 <- inla.mesh.project(mapBasis, 
-                               model_gaussian$summary.random$field$`0.025quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                               model$summary.random$field$`0.025quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
   fit.975 <- inla.mesh.project(mapBasis, 
-                               model_gaussian$summary.random$field$`0.975quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
+                               model$summary.random$field$`0.975quant`[1:SPDE$n.spde + (i - 1) * SPDE$n.spde])
 
   # Build maps with confidence intervals
   mapMean[[i]] <- raster(t(fitMean[,ncol(fitMean):1]),
@@ -503,7 +496,7 @@ p <- ggplot() +
   labs(title = 'Time group: {closest_state}')
 p
 # save!
-gganimate::anim_save("predictions.gif", animation = p, path = "figures/")
+# gganimate::anim_save("predictions.gif", animation = p, path = "figures/")
 ```
 
 Each time step:
