@@ -325,6 +325,7 @@ model <- inla(form,
 
 ```{r output-model}
 summary(model)
+model$summary.hyperpar
 ```
 
 ```{r check-model}
