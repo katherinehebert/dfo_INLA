@@ -21,34 +21,33 @@ library(patchwork)
 #read in all data
 source(here('./scripts/read_in_all_data.R'))
 
-#make some meshes
-redfish = number@data$`REDFISH UNSEPARATED`
+### Space
+xy = coordinates(explan)
+colnames(xy) = c("locx", "locy")
 
-maxEdge = 25000
-meshSpace = inla.mesh.2d(boundary = gulf, 
-                         max.edge = maxEdge*c(0.5,2),
-                         offset = c(100000,20000),
-                         cutoff = maxEdge/2)
-par(mar = c(1,1,1,1))
-plot(meshSpace, main = "", asp = 1)
+### Time
+time = as.numeric(explan@endTime)/60 # Number of minutes since Jan 1, 1970 
+timeBasis = time - 884844 # Time starting at 1
 
-# put points with the mesh
-par(mar = c(1,1,1,1))
-#plot(number@sp, pch = 19, cex = number@data$`REDFISH UNSEPARATED`/300, col = "red")
-plot(gulf, add = TRUE)
-plot(meshSpace, main = "", asp = 1, add = TRUE)
-
-meshSpace$n
-
-time = as.numeric(fish_rich@endTime)/60
-timeBasis = time - 884844
-
+#______________
+## Build meshes
+#______________
+### Temporal mesh
 timeGr = 11
-timeSeq = seq(min(timeBasis), max(timeBasis), length = timeGr)
+timeSeq = seq(min(timeBasis),
+               max(timeBasis),
+               length = timeGr)
 
 meshTime = inla.mesh.1d(timeSeq)
-meshSpace$n * meshTime$n
 
+### Spatial mesh
+maxEdge = 35000
+meshSpace = inla.mesh.2d(boundary = gulf, 
+                          max.edge=maxEdge * c(0.5,2),
+                          cutoff=maxEdge/4,
+                          offset = c(10000,20000))
+
+plot(meshSpace, asp = 1)
 
 SPDE = inla.spde2.pcmatern(mesh=meshSpace,
                            alpha=2,
@@ -72,35 +71,36 @@ A = inla.spde.make.A(meshSpace,
 ######## model fitting for some other models to compare
 
 #include depth & random effect for the full model
-# Alist_btbsdp_rand = as.list(rep(1,5))
-# Alist_btbsdp_rand[[1]] = A
-# 
-# effect_btbsdp_rand = list(Field,
-#                    bTemp =  explan@data$bottom.temperature,
-#                    bSal = explan@data$bottom.salinity,
-#                    depth = explan@data$depth,
-#                    stratum = explan@data$stratum)
-# 
-# Stack_redfish_btbdp_rand = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
-#                                A = Alist_btbsdp_rand,
-#                                effects = effect_btbsdp_rand,
-#                                tag="basis")
-# 
-# form_redfish_btbdp_rand = redfish ~ 0 + bTemp + bSal + depth +
-#   f(field, model=SPDE,
-#     group = field.group,
-#     control.group=list(model='ar1', hyper=hSpec))
-# 
-# model_redfish_btbdp_rand = inla(form_redfish_btbdp_rand,
-#                          data = inla.stack.data(Stack_redfish_btbdp_rand),
-#                          family="gaussian",
-#                          control.family =list(link="identity", hyper = list(theta=precPrior)),
-#                          control.predictor=list(A=inla.stack.A(Stack_redfish_btbdp_rand),
-#                                                 compute=TRUE, link = 1),
-#                          control.compute=list(waic=TRUE),
-#                          verbose = FALSE)
-# 
-# summary(model_redfish_btbdp_rand)
+Alist_btbsdp_rand = as.list(rep(1,5))
+Alist_btbsdp_rand[[1]] = A
+
+effect_btbsdp_rand = list(Field,
+                   bTemp =  explan@data$bottom.temperature,
+                   bSal = explan@data$bottom.salinity,
+                   depth = explan@data$depth,
+                   stratum = explan@data$stratum)
+
+Stack_redfish_btbdp_rand = inla.stack(data=list(redfish = number@data$`REDFISH UNSEPARATED`),
+                               A = Alist_btbsdp_rand,
+                               effects = effect_btbsdp_rand,
+                               tag="basis")
+
+form_redfish_btbdp_rand = redfish ~ 0 + bTemp + bSal + depth + f(explan@data$stratum,
+                                                                 model = "iid",
+                                                                 hyper = list(theta = list(prior = "gaussian",
+                                                                                           param = c(0, 0.001))))
+  
+
+model_redfish_btbdp_rand = inla(form_redfish_btbdp_rand,
+                         data = inla.stack.data(Stack_redfish_btbdp_rand),
+                         family="nbinomial",
+                         control.family =list(link="identity", hyper = list(theta=precPrior)),
+                         control.predictor=list(A=inla.stack.A(Stack_redfish_btbdp_rand),
+                                                compute=TRUE, link = 1),
+                         control.compute=list(waic=TRUE),
+                         verbose = FALSE)
+
+summary(model_redfish_btbdp_rand)
 
 # model with all fixed but no random
 Alist_btbsdp = as.list(rep(1,5))

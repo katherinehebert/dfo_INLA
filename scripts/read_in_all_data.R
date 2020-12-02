@@ -33,10 +33,10 @@ species_names = read_csv('species_names.csv')
 rm(dir)
 
 #round the numbers of the abundance
-number@data = round(number@data)
-for(i in 1:ncol(number@data)) {
-  if(class(number@data[,i]) == "numeric"){
-    number@data[,i] = as.integer(number@data[,i])
-  }
-}
+# number@data = round(number@data)
+# for(i in 1:ncol(number@data)) {
+#   if(class(number@data[,i]) == "numeric"){
+#     number@data[,i] = as.integer(number@data[,i])
+#   }
+# }
 
