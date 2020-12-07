@@ -69,27 +69,27 @@ quick_inla <- function(form){
 }
 
 # full model ----
-full <- fish ~ 1 + bTemp + bSal + slope + bDep
+full <- fish ~ 0 + bTemp + bSal + slope + bDep
 m_full <- quick_inla(full)
 
 # energy hypothesis ----
-energy <- fish ~ 1 + bTemp 
+energy <- fish ~ 0 + bTemp 
 m_energy <- quick_inla(energy)
 
 # productivity hypothesis (missing ice) ----
-prod <- fish ~ 1 + bSal # + ice
+prod <- fish ~ 0 + bSal # + ice
 m_prod <- quick_inla(prod)
 
 # climate stability hypothesis ----
-clim <- fish ~ 1 + bTemp + sTemp
+clim <- fish ~ 0 + bTemp + sTemp
 m_clim <- quick_inla(clim)
 
 # spatial heterogeneity hypothesis ----
-sphet <- fish ~ 1 + slope + bSal
+sphet <- fish ~ 0 + slope + bSal
 m_sphet <- quick_inla(sphet)
 
 # stress hypothesis ----
-stress <- fish ~ 1 + bDep
+stress <- fish ~ 0 + bDep
 m_stress <- quick_inla(stress)
 
 # save models
