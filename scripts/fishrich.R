@@ -4,12 +4,15 @@
 
 # 1) btemp (energy hypothesis)
 # 2) ice cover, bSalinity (productivity hypothesis)
-# 3) sTemp, bTemp for fish; just bTemp for invert ( climate stability)
+# 3) sTemp, bTemp for fish; just bTemp for invert (climate stability)
 # 4) slope, bSalinity (spatial heterogeneity hypothesis)
 # 5) depth (stress hypothesis)
 
 # full model: fishrich ~ bTemp + sTemp + ice cover + bSalinity + slope + depth
 
+# to do! ----
+# get ice cover
+# add ice cover into model # 2 and full model
 
 # set-up =======================================================================
 
