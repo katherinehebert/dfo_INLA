@@ -69,27 +69,27 @@ quick_inla <- function(form){
 }
 
 # full model ----
-full <- fish ~ 0 + bTemp + bSal + slope + bDep
+full <- fish ~ 1 + bTemp + bSal + slope + bDep
 m_full <- quick_inla(full)
 
 # energy hypothesis ----
-energy <- fish ~ 0 + bTemp 
+energy <- fish ~ 1 + bTemp 
 m_energy <- quick_inla(energy)
 
 # productivity hypothesis (missing ice) ----
-prod <- fish ~ 0 + bSal # + ice
+prod <- fish ~ 1 + bSal # + ice
 m_prod <- quick_inla(prod)
 
 # climate stability hypothesis ----
-clim <- fish ~ 0 + bTemp + sTemp
+clim <- fish ~ 1 + bTemp + sTemp
 m_clim <- quick_inla(clim)
 
 # spatial heterogeneity hypothesis ----
-sphet <- fish ~ 0 + slope + bSal
+sphet <- fish ~ 1 + slope + bSal
 m_sphet <- quick_inla(sphet)
 
 # stress hypothesis ----
-stress <- fish ~ 0 + bDep
+stress <- fish ~ 1 + bDep
 m_stress <- quick_inla(stress)
 
 # save models
@@ -135,12 +135,3 @@ ggplot(waic_df) +
 # save outputs
 ggsave("figures/fishrich_waic.pdf", width = 5.57, height = 3.37)
 saveRDS(waic_df, "outputs/fishrich_waic.rds")
-
-
-# predict values ===============================================================
-
-df <- data.frame(explan@data)
-pred_clim <- predict(m_clim, df, ~ 0 + bTemp + sTemp)
-
-ggplot(pred_clim) +
-  geom_line(aes(x = bottom.temperature, y = mean))
