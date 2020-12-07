@@ -93,12 +93,12 @@ stress <- fish ~ 0 + bDep
 m_stress <- quick_inla(stress)
 
 # save models
-saveRDS(m_full, "models/fishrich_full.rds")
-saveRDS(m_energy, "models/fishrich_energy.rds")
-saveRDS(m_prod, "models/fishrich_prod.rds")
-saveRDS(m_clim, "models/fishrich_clim.rds")
-saveRDS(m_sphet, "models/fishrich_sphet.rds")
-saveRDS(m_stress, "models/fishrich_stress.rds")
+saveRDS(m_full, "model-output/fishrich_full.rds")
+saveRDS(m_energy, "model-output/fishrich_energy.rds")
+saveRDS(m_prod, "model-output/fishrich_prod.rds")
+saveRDS(m_clim, "model-output/fishrich_clim.rds")
+saveRDS(m_sphet, "model-output/fishrich_sphet.rds")
+saveRDS(m_stress, "model-output/fishrich_stress.rds")
 
 
 # model summary ================================================================
