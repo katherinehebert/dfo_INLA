@@ -39,3 +39,5 @@ vignettes/*.pdf
 data/
 References/
 whitehake_files/
+docs/meeting 3 notes.R
+outputs/whitehake_model.RDS
