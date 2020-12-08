@@ -1,4 +1,13 @@
-# Script to run fish richness models
+###########################
+###########################
+## This script will build, run, and summarise **simple** hypothesis models in 
+## INLA for fish richness for the DFO St. Lawrence dataset
+###########################
+###########################
+## date: 2020-12-08
+## author: Katherine Hébert
+###########################
+###########################
 
 # The hypotheses models are:
 
@@ -9,9 +18,6 @@
 # 5) depth (stress hypothesis)
 
 # full model: fishrich ~ bTemp + sTemp + ice cover + bSalinity + slope + depth
-
-# to do! ----
-# add ice cover into model # 2 and full model
 
 # set-up =======================================================================
 
