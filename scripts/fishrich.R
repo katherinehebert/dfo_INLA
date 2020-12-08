@@ -11,7 +11,6 @@
 # full model: fishrich ~ bTemp + sTemp + ice cover + bSalinity + slope + depth
 
 # to do! ----
-# get ice cover
 # add ice cover into model # 2 and full model
 
 # set-up =======================================================================
@@ -21,27 +20,23 @@ library(hrbrthemes)
 library(tidyverse)
 library(ggregplot) # devtools::install_github("gfalbery/ggregplot")
 
-# library(raster)
-# library(patchwork)
-# library(sf)
-# library(animation)
-
 # load data
-explan <- readRDS("data/nov_25/explan.RDS")
+explan <- readRDS("data/explan_ice.RDS")
 fish <- readRDS("data/fishRich.RDS")
 
 
 # prepare data for model =======================================================
 
 # build A matrix that will hold parameters to construct the model
-Alist <- as.list(rep(1,5)) # list with single values
+Alist <- as.list(rep(1,6)) # list with single values
 
 # organise effects 
 effect <- list(bTemp =  explan@data$bottom.temperature,
                sTemp = explan@data$surface.temperature,
                bSal = explan@data$bottom.salinity,
                slope = explan@data$slope,
-               bDep = explan@data$depth
+               bDep = explan@data$depth,
+               ice = explan@data$ice.duration
 )
 
 # build stack
@@ -69,7 +64,7 @@ quick_inla <- function(form){
 }
 
 # full model ----
-full <- fish ~ 0 + bTemp + bSal + slope + bDep
+full <- fish ~ 0 + bTemp + bSal + slope + bDep + ice
 m_full <- quick_inla(full)
 
 # energy hypothesis ----
@@ -77,7 +72,7 @@ energy <- fish ~ 0 + bTemp
 m_energy <- quick_inla(energy)
 
 # productivity hypothesis (missing ice) ----
-prod <- fish ~ 0 + bSal # + ice
+prod <- fish ~ 0 + bSal + ice
 m_prod <- quick_inla(prod)
 
 # climate stability hypothesis ----
