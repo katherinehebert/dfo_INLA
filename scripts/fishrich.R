@@ -13,7 +13,7 @@
 
 # 1) btemp (energy hypothesis)
 # 2) ice cover, bSalinity (productivity hypothesis)
-# 3) sTemp, bTemp for fish; just bTemp for invert (climate stability)
+# 3) sTemp, bTemp (climate stability)
 # 4) slope, bSalinity (spatial heterogeneity hypothesis)
 # 5) depth (stress hypothesis)
 
@@ -22,7 +22,6 @@
 # set-up =======================================================================
 
 library(INLA)
-library(hrbrthemes)
 library(tidyverse)
 library(ggregplot) # devtools::install_github("gfalbery/ggregplot")
 
@@ -77,7 +76,7 @@ m_full <- quick_inla(full)
 energy <- fish ~ 0 + bTemp 
 m_energy <- quick_inla(energy)
 
-# productivity hypothesis (missing ice) ----
+# productivity hypothesis ----
 prod <- fish ~ 0 + bSal + ice
 m_prod <- quick_inla(prod)
 
