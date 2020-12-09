@@ -14,9 +14,10 @@
 # devtools::install_github("duplisea/gslea", build_vignettes = TRUE)
 library(gslea)
 library(tidyverse)
+library(here)
 
 # load explanatory variables dataset
-explan <- readRDS("data/nov_25/explan.RDS")
+source(here('./scripts/read_in_all_data.R'))
 
 # Duration of the ice season (number of days)
 EA.plot.f(variables = find.vars.f("ice.duration"), years = 1800:2100, EARs=5:6, pch = 16)
@@ -44,4 +45,7 @@ df$EAR[which(df$stratum %in% c(421, 402, 432))] <- 6
 explan@data <- left_join(df, ice, by = c("year", "EAR")) %>% subset(select = -c(variable))
 
 # save
-saveRDS(explan, "data/explan_ice.RDS")
+#set the directory using this super hacky method to keep the data private
+dir = paste0(str_sub(here(), 1, -9),'ciee-stlawrence/data')
+setwd(dir)
+saveRDS(explan, "explan_ice.RDS")

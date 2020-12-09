@@ -1,16 +1,3 @@
-whitehake ~ 0 + bTemp + bSal +
-  f(field, # temporal autocorr
-    model=SPDE, # spatial autocorr structure
-    group = field.group, # how they're grouped
-    control.group=list(model='ar1', hyper=hSpec) # build with model parameters
-  ) +
-  f(
-    strat,
-    model = "iid",
-    hyper = list(theta = list(prior = "gaussian",
-                              param = c(0, 0.001)))
-  )
-
 
 #libraries
 library(INLA)
@@ -47,7 +34,7 @@ meshTime = inla.mesh.1d(timeSeq)
 maxEdge = 35000
 meshSpace = inla.mesh.2d(boundary = gulf, 
                          max.edge=maxEdge * c(0.5,2),
-                         cutoff=maxEdge,
+                         cutoff=maxEdge/4,
                          offset = c(10000,20000))
 
 plot(meshSpace, asp = 1)
@@ -112,10 +99,10 @@ summary(model_redfish_simple_rand_rand_1)
 saveRDS(model_redfish_simple_rand_rand_1, 
                here('./model-output/model_redfish_simple_rand_space-stratum.rds'))
 
-ExpY <- model_redfish_simple_rand_rand$summary.fitted.values[1:nrow(number@data),"mean"]
+ExpY <- model_redfish_simple_rand_rand_1$summary.fitted.values[1:nrow(number@data),"mean"]
 
 #For the variance we also need the posterior mean value of θ, which is obtained via
-phi1 <- model_redfish_simple_rand_rand$summary.hyper[1, "mean"]
+phi1 <- model_redfish_simple_rand_rand_1$summary.hyper[1, "mean"]
 
 #The variance is then given by
 VarY <- ExpY * (1 - ExpY) / (1 + phi1)
@@ -124,11 +111,12 @@ VarY <- ExpY * (1 - ExpY) / (1 + phi1)
 E1 <- (number@data$`REDFISH UNSEPARATED` - ExpY) / sqrt(VarY)
 
 par(mfrow = c(1,1), mar = c(5,5,2,2), cex.lab = 1.5)
-plot(x = model_redfish_simple_rand_rand$summary.fitted.values$mean[1:nrow(number@data)], 
+plot(x = model_redfish_simple_rand_rand_1$summary.fitted.values$mean[1:nrow(number@data)], 
      y = E1,
      xlab = "Fitted values",
      ylab = "Pearson residuals",
-     xlim = c(0, 1))
+     xlim = c(0, 1),
+     ylim = c(-150,150))
 abline(h = 0, lty = 2)
 
 

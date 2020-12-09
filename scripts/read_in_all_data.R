@@ -12,7 +12,6 @@
 require(here)
 require(stringr)
 require(tidyverse)
-library(patchwork)
 
 #set the directory using this super hacky method to keep the data private
 dir = paste0(str_sub(here(), 1, -9),'ciee-stlawrence/data')
@@ -29,6 +28,7 @@ invert_rich = readRDS("invertRich.RDS")
 strata = readRDS("strata.RDS")
 weight = readRDS("weight.RDS")
 species_names = read_csv('species_names.csv')
+explan_ice = readRDS("explan_ice.RDS")
 
 rm(dir)
 

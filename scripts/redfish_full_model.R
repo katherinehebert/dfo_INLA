@@ -75,10 +75,16 @@ Stack_redfish_btbdp_rand = inla.stack(data=list(redfish = number@data$`REDFISH U
                                       effects = effect_btbsdp_rand,
                                       tag="basis")
 
-form_redfish_btbdp_rand = redfish ~ 0 + bTemp + bSal + depth + f(stratum,
-                                                                 model = "iid",
-                                                                 hyper = list(theta = list(prior = "gaussian",
-                                                                                           param = c(0, 0.001))))
+form_redfish_btbdp_rand = redfish ~ 0 + bTemp + bSal + depth +   
+  f(field, # temporal autocorr
+    model=SPDE, # spatial autocorr structure
+    group = field.group, # how they're grouped
+    control.group=list(model='ar1', hyper=hSpec) # build with model parameters
+) + f(stratum,
+      model = "iid",
+      hyper = list(theta = list(prior = "gaussian",
+                                param = c(0, 0.001)))
+)
 
 
 model_redfish_btbdp_rand_rand = inla(form_redfish_btbdp_rand,
