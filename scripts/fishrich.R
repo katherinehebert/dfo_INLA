@@ -44,11 +44,11 @@ effect <- list(bTemp =  explan@data$bottom.temperature,
                ice = explan@data$ice.duration
 )
 
-# build stack
-Stack <- inla.stack(data=list(fish = fish@data$species.fish.number),
-                    A = Alist,
-                    effects = effect,
-                    tag="basis")
+# build data stack
+stack <- inla.stack(data=list(fish = fish@data$species.fish.number),
+                         A = Alist,
+                         effects = effect,
+                         tag="basis")
 
 # set prior
 precPrior <- list(prior='pc.prec', param=c(1, 0.01))

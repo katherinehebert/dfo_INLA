@@ -41,3 +41,4 @@ References/
 whitehake_files/
 docs/meeting 3 notes.R
 outputs/whitehake_model.RDS
+model-output/model_redfish_simple_rand_space-stratum.rds
