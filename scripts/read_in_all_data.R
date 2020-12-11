@@ -18,17 +18,16 @@ dir = paste0(str_sub(here(), 1, -9),'ciee-stlawrence/data')
 setwd(dir)
 
 #load all data into the environment
-explan = readRDS("explan.RDS")
 number = readRDS("number.RDS")
 gulf = readRDS("gulf.RDS")
 catch_total = readRDS("catchTotal.RDS")
-fish_rich = readRDS("fishRich.RDS")
+fish = readRDS("fishRich.RDS")
 dem = readRDS("dem.RDS")
 invert_rich = readRDS("invertRich.RDS")
 strata = readRDS("strata.RDS")
 weight = readRDS("weight.RDS")
 species_names = read_csv('species_names.csv')
-explan_ice = readRDS("explan_ice.RDS")
+explan = readRDS("explan_ice.RDS")
 
 rm(dir)
 
